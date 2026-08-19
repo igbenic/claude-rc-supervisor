@@ -4,8 +4,11 @@
 # in pull request bodies — for ALL projects and sessions of the current
 # user, including remote sessions spawned by the supervisor.
 #
-# Merges {"attribution": {"commit": false, "pr": false}} into
-# ~/.claude/settings.json, preserving the rest of the file.
+# Merges {"attribution": {"commit": "", "pr": ""}, "includeCoAuthoredBy":
+# false} into ~/.claude/settings.json, preserving the rest of the file.
+# The attribution strings must be strings (empty = no "Generated with
+# Claude Code" note); includeCoAuthoredBy is the boolean that drops the
+# "Co-Authored-By: Claude" trailer.
 # Picked up by Claude Code on the fly, no restart needed.
 set -euo pipefail
 
@@ -17,8 +20,9 @@ mkdir -p "$HOME/.claude"
 [ -f "$CFG" ] || echo '{}' > "$CFG"
 
 tmp=$(mktemp "${TMPDIR:-/tmp}/claude-settings.XXXXXX")
-jq '.attribution = ((.attribution // {}) + {commit: false, pr: false})' "$CFG" > "$tmp"
+jq '.attribution = ((.attribution // {}) + {commit: "", pr: ""})
+    | .includeCoAuthoredBy = false' "$CFG" > "$tmp"
 mv "$tmp" "$CFG"
 
 echo "Attribution disabled in $CFG:"
-jq '.attribution' "$CFG"
+jq '{attribution, includeCoAuthoredBy}' "$CFG"

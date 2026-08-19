@@ -90,11 +90,16 @@ spawned by the supervisor. The script merges the following into
 ```json
 {
   "attribution": {
-    "commit": false,
-    "pr": false
-  }
+    "commit": "",
+    "pr": ""
+  },
+  "includeCoAuthoredBy": false
 }
 ```
+
+The `attribution` strings must be strings — empty removes the "Generated
+with Claude Code" note — while `includeCoAuthoredBy: false` drops the
+`Co-Authored-By: Claude` trailer.
 
 ## Running 24/7 (no sleep)
 
