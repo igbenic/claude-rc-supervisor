@@ -1,5 +1,12 @@
 # claude-rc-supervisor
 
+> **Fork notes (igbenic):** forked from `mnasyrov/claude-rc-supervisor` at
+> `0205c70` after a full read-through. Changes: `SESSION_PREFIX` (machine label
+> in session names, so two Macs serving the same repo are distinguishable) and
+> `setup-mac.sh` (one-shot installer: `RC_PREFIX=mbp ./setup-mac.sh`, or
+> `RC_PREFIX=mini ./setup-mac.sh --always-on` for the always-on box).
+> Don't press GitHub's "Sync fork" without reading the upstream diff first.
+
 Always-on [Claude Code Remote Control](https://code.claude.com/docs/en/remote-control)
 server for macOS: access every repository in your work folder from
 claude.ai/code or the Claude mobile app, 24/7, even with the laptop lid closed.

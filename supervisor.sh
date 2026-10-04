@@ -20,6 +20,7 @@ AUTO_TRUST=1            # auto-mark new repositories as trusted in ~/.claude.jso
 PERMISSION_MODE=""      # e.g. acceptEdits; empty = default
 SERVE_NON_GIT=1         # serve non-git folders without nested repos (same-dir mode)
 IGNORE_PATTERNS=""      # space-separated globs relative to WORK_DIR: "sandbox/* tmp-*"
+SESSION_PREFIX="$(hostname -s 2>/dev/null)"  # machine label prepended to session names; empty = repo name only
 MAX_LOG_BYTES=$((10 * 1024 * 1024))
 
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
@@ -128,7 +129,7 @@ start_server() {
         exec "$CLAUDE_BIN" remote-control \
             --spawn "$mode" \
             --no-create-session-in-dir \
-            --remote-control-session-name-prefix "$name" \
+            --remote-control-session-name-prefix "${SESSION_PREFIX:+$SESSION_PREFIX-}$name" \
             ${PERMISSION_MODE:+--permission-mode "$PERMISSION_MODE"}
     ) < /dev/null >> "$LOG_DIR/$key.log" 2>&1 &
     echo $! > "$STATE_DIR/$key.pid"
