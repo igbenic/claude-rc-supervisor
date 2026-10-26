@@ -33,4 +33,41 @@ done
 [ "$found" = 0 ] && echo "  no servers running"
 
 echo
+echo "== active sessions (last scan) =="
+found=0
+for snap in "$STATE_DIR"/*.sessions; do
+    [ -f "$snap" ] || continue
+    found=1
+    while IFS='|' read -r sid cwd; do
+        printf "  %-30s %s\n" "$(basename "$snap" .sessions)" "$sid"
+    done < "$snap"
+done
+[ "$found" = 0 ] && echo "  none"
+
+echo
+echo "== reattached sessions =="
+found=0
+for cwdfile in "$STATE_DIR"/reattach/*.cwd; do
+    [ -f "$cwdfile" ] || continue
+    found=1
+    sid=$(basename "$cwdfile" .cwd)
+    pid=$(cat "$STATE_DIR/reattach/$sid.pid" 2>/dev/null)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        state="RUNNING (pid $pid)"
+    else
+        state="PENDING (next scan)"
+    fi
+    printf "  %-34s %s  %s\n" "$sid" "$state" "$(cat "$cwdfile")"
+done
+[ "$found" = 0 ] && echo "  none"
+
+echo
+pid=$(cat "$STATE_DIR/keep-awake.state" 2>/dev/null)
+if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    echo "Keep-awake: on (caffeinate pid $pid)"
+else
+    echo "Keep-awake: off"
+fi
+
+echo
 echo "Logs: $LOG_DIR/"

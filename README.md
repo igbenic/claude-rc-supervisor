@@ -4,7 +4,9 @@
 > `0205c70` after a full read-through. Changes: `SESSION_PREFIX` (machine label
 > in session names, so two Macs serving the same repo are distinguishable) and
 > `setup-mac.sh` (one-shot installer: `RC_PREFIX=mbp ./setup-mac.sh`, or
-> `RC_PREFIX=mini ./setup-mac.sh --always-on` for the always-on box).
+> `RC_PREFIX=mini ./setup-mac.sh --always-on` for the always-on box), and
+> [session self-healing](#session-self-healing) (orphaned sessions are
+> reattached, idle sleep is blocked while sessions run).
 > Don't press GitHub's "Sync fork" without reading the upstream diff first.
 
 Always-on [Claude Code Remote Control](https://code.claude.com/docs/en/remote-control)
@@ -31,6 +33,8 @@ full of repositories. The supervisor ([supervisor.sh](supervisor.sh)) solves thi
   (`hasTrustDialogAccepted` in `~/.claude.json`) — otherwise Remote Control
   requires running `claude` once in the directory manually
   (disable with `AUTO_TRUST=0`);
+- reattaches sessions that a server exit left orphaned and keeps the Mac
+  awake while sessions run (see [Session self-healing](#session-self-healing));
 - the supervisor itself runs as a launchd LaunchAgent: starts at login,
   auto-restarts on crash (`KeepAlive`).
 
@@ -72,6 +76,10 @@ Main parameters:
 | `SERVE_NON_GIT` | `1` | Serve non-git folders (same-dir) |
 | `AUTO_TRUST` | `1` | Auto-accept the trust dialog for new repositories |
 | `CLAUDE_BIN` | from `PATH` | Path to the `claude` binary |
+| `REATTACH` | `1` | Reattach sessions orphaned by a server exit |
+| `REATTACH_WINDOW` | `14400` | Seconds a session stays reattachable |
+| `REATTACH_MAX_ATTEMPTS` | `5` | Failed reattach attempts before giving up on a session |
+| `KEEP_AWAKE` | `1` | `caffeinate -i` while any remote session is active |
 
 After changing the config:
 
@@ -145,7 +153,44 @@ Important:
    or log in manually after a reboot.
 3. **Network**: after an outage longer than ~10 minutes remote-control
    processes exit on their own — the supervisor restarts them on the
-   next scan.
+   next scan and reattaches their sessions (see below).
+
+## Session self-healing
+
+When a `claude remote-control` server exits — the laptop slept and had no
+network for ~10 minutes (`Persistent errors for 10 minutes, giving up`), or
+the supervisor was restarted — it takes its running sessions down with it.
+The restarted server registers a **new** environment, so those sessions stay
+"Can't reach <host>" in the app forever, even though the machine is back.
+
+The supervisor heals this:
+
+1. On every scan it reads the newest status block of each server log and
+   records the active sessions in `$STATE_DIR/<repo>.sessions`
+   (session ID + the session's worktree `.claude/worktrees/bridge-cse_<id>`).
+2. When a server is found dead (or the supervisor starts after being
+   stopped), each recorded session is reattached with
+   `claude remote-control --session-id <id>` in its worktree. The session
+   shows up in the app again with its full history.
+3. A reattach process that gives up as well is restarted, up to
+   `REATTACH_MAX_ATTEMPTS` times (the counter resets after 10 stable
+   minutes). When the session ends normally, the entry is dropped.
+   Sessions last seen more than `REATTACH_WINDOW` seconds ago are skipped —
+   the CLI only allows reattaching for roughly 4 hours.
+4. While any session is active, `caffeinate -i` keeps the Mac from
+   idle-sleeping, on battery too; it is released when the last session
+   ends. Closing the lid on battery still sleeps — step 2 covers that.
+
+`./status.sh` lists active and reattached sessions; logs of reattach
+processes are `reattach-<session id>.log`. Test: `tests/reattach-test.sh`
+(uses a fake `claude`, touches no real sessions).
+
+To reattach a session by hand (e.g. one orphaned before this existed):
+
+```bash
+cd <repo>/.claude/worktrees/bridge-cse_<id without "session_">
+claude remote-control --session-id session_<id>
+```
 
 ## Security considerations
 
@@ -181,6 +226,7 @@ Exclude spare clones/sandboxes via `IGNORE_PATTERNS`.
 | [status.sh](status.sh) | Supervisor and server status |
 | [setup-power.sh](setup-power.sh) | macOS setup for 24/7 operation |
 | [disable-attribution.sh](disable-attribution.sh) | Optional: disable Claude attribution in commits/PRs |
+| [tests/reattach-test.sh](tests/reattach-test.sh) | End-to-end test of session self-healing (fake `claude`) |
 
 ## License
 
